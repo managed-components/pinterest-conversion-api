@@ -1,0 +1,47 @@
+{
+  "name": "@managed-components/pinterest",
+  "version": "1.0.2",
+  "description": "A Managed Component for pinterest",
+  "main": "dist/index.js",
+  "scripts": {
+    "lint": "eslint --ext .ts,.js, src",
+    "lint:fix": "eslint --ext .ts,.js, src --fix",
+    "bundle": "node esbuild.js",
+    "build": "npm run lint && npm run typecheck && npm run bundle",
+    "typecheck": "tsc --project tsconfig.build.json --noEmit",
+    "test": "vitest run --globals --passWithNoTests",
+    "test:dev": "vitest --globals",
+    "release": "npm run build && npm version patch && npm publish"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/managed-components/pinterest.git"
+  },
+  "keywords": [
+    "webcm",
+    "managed-components",
+    "pinterest"
+  ],
+  "author": "Cloudflare Managed Components Team <managedcomponents@cloudflare.com> (https://blog.cloudflare.com/zaraz-open-source-managed-components-and-webcm/)",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/managed-components/pinterest/issues"
+  },
+  "homepage": "https://github.com/managed-components/pinterest#readme",
+  "devDependencies": {
+    "@managed-components/types": "^1.3.1",
+    "@typescript-eslint/eslint-plugin": "^5.27.0",
+    "all-contributors-cli": "^6.20.0",
+    "esbuild": "^0.14.42",
+    "eslint": "^8.16.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "ts-node": "^10.8.0",
+    "typescript": "^4.7.2",
+    "vitest": "^0.13.0"
+  },
+  "dependencies": {
+    "@types/ua-parser-js": "^0.7.36",
+    "ua-parser-js": "^1.0.35"
+  }
+}
