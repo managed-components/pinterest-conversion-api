@@ -80,4 +80,4 @@ describe('getEventData', () => {
 
     expect(result).toEqual(expectedResult)
   })
-})~
+})
