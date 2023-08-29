@@ -1,11 +1,12 @@
 import { ComponentSettings, Manager, MCEvent } from '@managed-components/types'
 import UAParser from 'ua-parser-js'
-import * as crypto from 'crypto' // remove when done testing in webCM
-function sha256(toHash: any) {
-  return crypto.createHash('sha256').update(toHash).digest('hex')
+
+async function sha256(data: any) {
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return digest
 }
 
-export const getEventData = (
+export const getEventData = async (
   event: MCEvent,
   pageview: boolean,
   ecomPayload?: any
@@ -39,22 +40,22 @@ export const getEventData = (
       client_user_agent: payload.client_user_agent || parsedUserAgent.ua,
       ...(payload.em &&
         typeof payload.em === 'string' && {
-          em: sha256(payload.em.toLowerCase()),
+          em: await sha256(payload.em.toLowerCase()),
         }),
       ...(payload.hashed_maids && {
-        hashed_maids: sha256(payload.hashed_maids),
+        hashed_maids: await sha256(payload.hashed_maids),
       }),
-      ...(payload.ph && { ph: sha256(payload.ph) }),
-      ...(payload.ge && { ge: sha256(payload.ge) }),
-      ...(payload.bd && { ge: sha256(payload.bd) }),
-      ...(payload.ln && { ge: sha256(payload.ln) }),
-      ...(payload.fn && { ge: sha256(payload.fn) }),
-      ...(payload.ct && { ge: sha256(payload.ct) }),
-      ...(payload.st && { ge: sha256(payload.st) }),
-      ...(payload.zp && { ge: sha256(payload.zp) }),
-      ...(payload.country && { ge: sha256(payload.country) }),
-      ...(payload.external_id && { ge: sha256(payload.external_id) }),
-      ...(payload.click_id && { ge: sha256(payload.click_id) }),
+      ...(payload.ph && { ph: await sha256(payload.ph) }),
+      ...(payload.ge && { ge: await sha256(payload.ge) }),
+      ...(payload.bd && { ge: await sha256(payload.bd) }),
+      ...(payload.ln && { ge: await sha256(payload.ln) }),
+      ...(payload.fn && { ge: await sha256(payload.fn) }),
+      ...(payload.ct && { ge: await sha256(payload.ct) }),
+      ...(payload.st && { ge: await sha256(payload.st) }),
+      ...(payload.zp && { ge: await sha256(payload.zp) }),
+      ...(payload.country && { ge: await sha256(payload.country) }),
+      ...(payload.external_id && { ge: await sha256(payload.external_id) }),
+      ...(payload.click_id && { ge: await sha256(payload.click_id) }),
     },
     custom_data: {
       ...(payload.search_string && { search_string: payload.search_string }),
