@@ -1,4 +1,4 @@
-# Pinterest CAPI Managed Component
+# Pinterest Conversion API Managed Component
 
 Find out more about Managed Components [here](https://blog.cloudflare.com/zaraz-open-source-managed-components-and-webcm/) for inspiration and motivation details.
 

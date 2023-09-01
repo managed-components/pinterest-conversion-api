@@ -1,10 +1,6 @@
 import { ComponentSettings, Manager, MCEvent } from '@managed-components/types'
 import UAParser from 'ua-parser-js'
-
-async function sha256(data: any) {
-  const digest = await crypto.subtle.digest('SHA-256', data)
-  return digest
-}
+import { checkEventName, hashPayload } from './utils'
 
 export const getEventData = async (
   event: MCEvent,
@@ -14,11 +10,12 @@ export const getEventData = async (
   const { client } = event
   const parsedUserAgent = UAParser(client.userAgent)
   const payload = ecomPayload ? ecomPayload : event.payload
+  const hashedUserProperties = await hashPayload(event)
 
   const eventData = {
     event_name: pageview ? 'page_visit' : payload.name,
     action_source: payload.action_source || 'web',
-    event_time: client.timestamp,
+    event_time: Math.floor(Date.now() / 1000),
     event_id:
       payload.event_id ||
       payload.ecommerce?.event_id ||
@@ -33,38 +30,21 @@ export const getEventData = async (
     device_model: parsedUserAgent.device.model,
     os_version: parsedUserAgent.os.version,
     ...(payload.wifi && { wifi: payload.wifi }),
-    // are we sending like this: Two-character ISO-639-1 language code indicating the user's language?
     language: payload.language || client.language.split(',')[0].substring(0, 2),
-    user_properties: {
+    user_data: {
       client_ip_address: payload.client_ip_address || client.ip.toString(),
       client_user_agent: payload.client_user_agent || parsedUserAgent.ua,
-      ...(payload.em &&
-        typeof payload.em === 'string' && {
-          em: await sha256(payload.em.toLowerCase()),
-        }),
-      ...(payload.hashed_maids && {
-        hashed_maids: await sha256(payload.hashed_maids),
-      }),
-      ...(payload.ph && { ph: await sha256(payload.ph) }),
-      ...(payload.ge && { ge: await sha256(payload.ge) }),
-      ...(payload.bd && { ge: await sha256(payload.bd) }),
-      ...(payload.ln && { ge: await sha256(payload.ln) }),
-      ...(payload.fn && { ge: await sha256(payload.fn) }),
-      ...(payload.ct && { ge: await sha256(payload.ct) }),
-      ...(payload.st && { ge: await sha256(payload.st) }),
-      ...(payload.zp && { ge: await sha256(payload.zp) }),
-      ...(payload.country && { ge: await sha256(payload.country) }),
-      ...(payload.external_id && { ge: await sha256(payload.external_id) }),
-      ...(payload.click_id && { ge: await sha256(payload.click_id) }),
+      ...(payload.click_id && { click_id: payload.click_id }),
+      ...hashedUserProperties,
     },
     custom_data: {
       ...(payload.search_string && { search_string: payload.search_string }),
       ...(payload.opt_out_type && { opt_out_type: payload.opt_out_type }),
       ...(payload.np && { np: payload.np }),
       ...(payload.currency && { currency: payload.currency }),
-      ...(payload.value && { value: payload.value }),
+      ...(payload.value && { value: payload.value.toString() }),
       ...(payload.order_id && { order_id: payload.order_id }),
-      ...(payload.content_ids && { content_ids: payload.content_ids }),
+      ...(payload.content_ids && { content_ids: [payload.content_ids] }),
       ...(payload.content_name && { content_name: payload.content_name }),
       ...(payload.content_category && {
         content_category: payload.content_category,
@@ -78,14 +58,12 @@ export const getEventData = async (
 }
 
 export default async function (manager: Manager, settings: ComponentSettings) {
-  const ecomDataMap = (event: MCEvent) => {
+  const getEcommercePayload = (event: MCEvent) => {
     const { type, name } = event
     let { payload } = event
     payload = { ...payload, ...payload.ecommerce }
-    delete payload.ecommerce
-
     if (type === 'ecommerce') {
-      const mapEventName = (name: any) => {
+      const mapEventName = (name: string | undefined) => {
         if (name === 'Product Added') {
           // Fixed the assignment (=) to comparison (===)
           return 'add_to_cart'
@@ -110,7 +88,7 @@ export default async function (manager: Manager, settings: ComponentSettings) {
           .join()
         payload.contents = payload.products.map((product: any) => ({
           id: product.product_id,
-          item_price: product.price,
+          item_price: product.price.toString(),
           quantity: product.quantity,
         }))
         payload.num_items =
@@ -126,52 +104,44 @@ export default async function (manager: Manager, settings: ComponentSettings) {
     return payload
   }
 
-  manager.addEventListener('pageview', async event => {
-    const eventData = getEventData(event, true)
-    sendEvent(eventData)
-  })
-
-  manager.addEventListener('event', async event => {
-    const checkEventName = () => {
-      const allowedEvents = [
-        'custom',
-        'lead',
-        'search',
-        'signup',
-        'view_category',
-        'watch_video',
-      ]
-      if (allowedEvents.includes(event.payload.name)) {
-        const eventData = getEventData(event, false)
-        console.log('my result', eventData)
-        sendEvent(eventData)
-      }
-    }
-    checkEventName()
-  })
-
-  manager.addEventListener('ecommerce', async event => {
-    const ecomPayload = ecomDataMap(event)
-    const eventData = getEventData(event, false, ecomPayload)
-    sendEvent(eventData)
-  })
-
   // sendEvent function is the main functions to send a server side request
   const sendEvent = async (eventData: any) => {
     const requestBody = {
       data: [eventData],
     }
 
-    // after testing change endpoint to: https://api.pinterest.com/v5/ad_accounts/{ad_account_id}/events
-    const pinterestEndpoint = `https://en3cl2fkvcs8a.x.pipedream.net/?${settings.ad_account_id}`
-    manager.fetch(pinterestEndpoint, {
+    const pinterestEndpoint = `https://api.pinterest.com/v5/ad_accounts/${settings.ad_account_id}/events`
+
+    await manager.fetch(pinterestEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        //not sure if Authorization was handled properly?!
-        Authorization: `basic ${settings.conversion_token}`,
+        Authorization: `Bearer ${settings.conversion_token}`,
       },
       body: JSON.stringify(requestBody),
     })
   }
+
+  manager.addEventListener('pageview', async event => {
+    const eventData = await getEventData(event, true)
+    sendEvent(eventData)
+  })
+
+  manager.addEventListener('event', async event => {
+    const checkedEvent = checkEventName(event)
+    if (!checkedEvent) {
+      // If the event isn't allowed, we stop processing
+      return
+    }
+    const eventData = await getEventData(event, false)
+    if (eventData) {
+      sendEvent(eventData)
+    }
+  })
+
+  manager.addEventListener('ecommerce', async event => {
+    const ecomPayload = getEcommercePayload(event)
+    const eventData = await getEventData(event, false, ecomPayload)
+    sendEvent(eventData)
+  })
 }
