@@ -36,6 +36,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "ad-astra-via",
+      "name": "Yair Dovrat",
+      "avatar_url": "https://avatars.githubusercontent.com/u/90049335?s=400&u=23ebb3e456fe992dac2567997a8891a5785ed18c&v=4",
+      "profile": "https://github.com/ad-astra-via",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7
