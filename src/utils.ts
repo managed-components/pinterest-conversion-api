@@ -34,7 +34,7 @@ export async function sha256(data: any): Promise<string | undefined> {
 }
 
 export async function hashPayload(
-  event: MCEvent
+  payload: any
 ): Promise<Record<string, string[]>> {
   const hashedData: Record<string, string[]> = {}
   const fieldsToHash = [
@@ -53,12 +53,120 @@ export async function hashPayload(
   ]
 
   for (const field of fieldsToHash) {
-    if (event.payload[field]) {
-      const hashedValue = await sha256(event.payload[field].toLowerCase())
+    if (payload[field]) {
+      const hashedValue = await sha256(payload[field].toLowerCase())
       if (hashedValue) {
         hashedData[field] = [hashedValue]
       }
     }
   }
   return hashedData
+}
+
+export async function pushEventData(payload: any) {
+  const eventDataKeys = [
+    'partner_name',
+    'app_id',
+    'app_name',
+    'app_version',
+    'wifi',
+  ]
+  const eventDataResult: { [key: string]: any } = {}
+
+  for (const key of eventDataKeys) {
+    if (Object.prototype.hasOwnProperty.call(payload, key)) {
+      eventDataResult[key] = payload[key]
+    }
+  }
+  return eventDataResult
+}
+
+export async function pushCustomData(payload: any) {
+  const customDataKeys = [
+    'search_string',
+    'opt_out_type',
+    'np',
+    'currency',
+    'value',
+    'order_id',
+    'content_ids',
+    'content_name',
+    'content_category',
+    'content_brand',
+    'contents',
+    'num_items',
+  ]
+  const customDataResult: { [key: string]: any } = {}
+  for (const key of customDataKeys) {
+    if (Object.prototype.hasOwnProperty.call(payload, key)) {
+      switch (key) {
+        case 'currency':
+        case 'value':
+          customDataResult[key] = String(payload[key])
+          break
+        case 'num_items':
+          customDataResult[key] = parseInt(payload[key], 10) // Convert to integer
+          break
+        case 'content_ids':
+          customDataResult[key] = [payload[key]]
+          break
+        case 'contents':
+          // Ensure contents is an array of objects
+          customDataResult[key] = Array.isArray(payload[key])
+            ? payload[key]
+            : []
+          break
+        default:
+          customDataResult[key] = payload[key]
+      }
+    }
+  }
+
+  return customDataResult
+}
+
+export async function getEcommercePayload(event: MCEvent) {
+  const { type, name } = event
+  let { payload } = event
+  payload = { ...payload, ...payload.ecommerce }
+  if (type === 'ecommerce') {
+    const mapEventName = (name: string | undefined) => {
+      if (name === 'Product Added') {
+        // Fixed the assignment (=) to comparison (===)
+        return 'add_to_cart'
+      } else if (name === 'Order Completed') {
+        return 'checkout'
+      }
+    }
+
+    payload.name = mapEventName(name)
+    if (Array.isArray(payload.products)) {
+      payload.content_ids = payload.products
+        .map((product: any) => product.product_id)
+        .join()
+      payload.content_name = payload.products
+        .map((product: any) => product.name)
+        .join()
+      payload.content_category = payload.products
+        .map((product: any) => product.category)
+        .join()
+      payload.content_brand = payload.products
+        .map((product: any) => product.brand)
+        .join()
+      payload.contents = payload.products.map((product: any) => ({
+        id: product.product_id,
+        item_price: product.price.toString(),
+        quantity: product.quantity,
+      }))
+      payload.num_items =
+        payload.quantity ||
+        payload.products.reduce(
+          (sum: any, product: any) => sum + parseInt(product.quantity, 10),
+          0
+        )
+    }
+
+    payload.value = payload.revenue || payload.total || payload.value
+  }
+  return payload
 }

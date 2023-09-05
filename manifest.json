@@ -1,6 +1,6 @@
 {
-  "name": "pinterest-capi",
-  "namespace": "pinterest-capi",
+  "name": "@managed-components/pinterest-conversion-api",
+  "namespace": "@managed-components/pinterest-conversion-api",
   "description": "pinterest capi mc",
   "icon": "assets/icon.svg",
   "permissions": {

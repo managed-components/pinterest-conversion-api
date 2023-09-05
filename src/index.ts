@@ -1,16 +1,23 @@
 import { ComponentSettings, Manager, MCEvent } from '@managed-components/types'
 import UAParser from 'ua-parser-js'
-import { checkEventName, hashPayload } from './utils'
+import {
+  checkEventName,
+  hashPayload,
+  pushEventData,
+  pushCustomData,
+} from './utils'
 
 export const getEventData = async (
   event: MCEvent,
   pageview: boolean,
-  ecomPayload?: any
+  ecomPayload?: object
 ) => {
   const { client } = event
   const parsedUserAgent = UAParser(client.userAgent)
   const payload = ecomPayload ? ecomPayload : event.payload
-  const hashedUserProperties = await hashPayload(event)
+  const hashedUserProperties = await hashPayload(payload)
+  const eventDataResult = await pushEventData(payload)
+  const customDataResult = await pushCustomData(payload)
 
   const eventData = {
     event_name: pageview ? 'page_visit' : payload.name,
@@ -20,17 +27,13 @@ export const getEventData = async (
       payload.event_id ||
       payload.ecommerce?.event_id ||
       String(Math.round(Math.random() * 100000000000000000)),
-    event_source_url: payload.event_source_url || client.url,
+    event_source_url: payload.event_source_url || client.url.href,
     opt_out: payload.opt_out || false,
-    ...(payload.partner_name && { partner_name: payload.partner_name }),
-    ...(payload.app_id && { app_id: payload.app_id }),
-    ...(payload.app_name && { app_name: payload.app_name }),
-    ...(payload.app_version && { app_version: payload.app_version }),
     device_brand: parsedUserAgent.device.vendor,
     device_model: parsedUserAgent.device.model,
     os_version: parsedUserAgent.os.version,
-    ...(payload.wifi && { wifi: payload.wifi }),
     language: payload.language || client.language.split(',')[0].substring(0, 2),
+    ...eventDataResult,
     user_data: {
       client_ip_address: payload.client_ip_address || client.ip.toString(),
       client_user_agent: payload.client_user_agent || parsedUserAgent.ua,
@@ -38,22 +41,10 @@ export const getEventData = async (
       ...hashedUserProperties,
     },
     custom_data: {
-      ...(payload.search_string && { search_string: payload.search_string }),
-      ...(payload.opt_out_type && { opt_out_type: payload.opt_out_type }),
-      ...(payload.np && { np: payload.np }),
-      ...(payload.currency && { currency: payload.currency }),
-      ...(payload.value && { value: payload.value.toString() }),
-      ...(payload.order_id && { order_id: payload.order_id }),
-      ...(payload.content_ids && { content_ids: [payload.content_ids] }),
-      ...(payload.content_name && { content_name: payload.content_name }),
-      ...(payload.content_category && {
-        content_category: payload.content_category,
-      }),
-      ...(payload.content_brand && { content_brand: payload.content_brand }),
-      ...(payload.contents && { contents: payload.contents }),
-      ...(payload.num_items && { num_items: payload.num_items }),
+      ...customDataResult,
     },
   }
+  console.log('eventData is:', JSON.stringify(eventData, null, 2))
   return eventData
 }
 
@@ -104,7 +95,6 @@ export default async function (manager: Manager, settings: ComponentSettings) {
     return payload
   }
 
-  // sendEvent function is the main functions to send a server side request
   const sendEvent = async (eventData: any) => {
     const requestBody = {
       data: [eventData],
@@ -112,14 +102,27 @@ export default async function (manager: Manager, settings: ComponentSettings) {
 
     const pinterestEndpoint = `https://api.pinterest.com/v5/ad_accounts/${settings.ad_account_id}/events`
 
-    await manager.fetch(pinterestEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${settings.conversion_token}`,
-      },
-      body: JSON.stringify(requestBody),
-    })
+    try {
+      const response = await manager.fetch(pinterestEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${settings.conversion_token}`,
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        // Check if response status code is not a success code
+        const errorData = await response.json() // Assuming the error response is in JSON format
+        console.error('Request failed with status:', response.status)
+        console.error('Error response data:', errorData)
+        console.error('Original request data:', eventData)
+      }
+    } catch (error) {
+      console.error('Error sending request:', error)
+      console.error('Original request data:', eventData)
+    }
   }
 
   manager.addEventListener('pageview', async event => {
