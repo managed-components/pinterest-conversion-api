@@ -44,7 +44,6 @@ export const getEventData = async (
       ...customDataResult,
     },
   }
-  console.log('eventData is:', JSON.stringify(eventData, null, 2))
   return eventData
 }
 
@@ -102,27 +101,14 @@ export default async function (manager: Manager, settings: ComponentSettings) {
 
     const pinterestEndpoint = `https://api.pinterest.com/v5/ad_accounts/${settings.ad_account_id}/events`
 
-    try {
-      const response = await manager.fetch(pinterestEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${settings.conversion_token}`,
-        },
-        body: JSON.stringify(requestBody),
-      })
-
-      if (!response.ok) {
-        // Check if response status code is not a success code
-        const errorData = await response.json() // Assuming the error response is in JSON format
-        console.error('Request failed with status:', response.status)
-        console.error('Error response data:', errorData)
-        console.error('Original request data:', eventData)
-      }
-    } catch (error) {
-      console.error('Error sending request:', error)
-      console.error('Original request data:', eventData)
-    }
+    await manager.fetch(pinterestEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${settings.conversion_token}`,
+      },
+      body: JSON.stringify(requestBody),
+    })
   }
 
   manager.addEventListener('pageview', async event => {
