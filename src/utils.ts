@@ -15,7 +15,7 @@ export const checkEventName = (event: MCEvent) => {
     return
   }
 }
-export async function sha256(data: any): Promise<string | undefined> {
+export async function sha256(data: string): Promise<string | undefined> {
   if (!data) {
     return
   } else {
