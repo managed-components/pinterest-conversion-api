@@ -84,7 +84,7 @@ export default async function (manager: Manager, settings: ComponentSettings) {
         payload.num_items =
           payload.quantity ||
           payload.products.reduce(
-            (sum: any, product: any) => sum + parseInt(product.quantity, 10),
+            (sum: number, product: any) => sum + parseInt(product.quantity, 10),
             0
           )
       }
