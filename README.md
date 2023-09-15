@@ -209,16 +209,16 @@ Will result in sending these Event Properties:
 
 - `value`: `25.0`
 - `quantity`: `4`
-- `contents`: [{
-  id: '1111product',
-  item_price: 10,
-  quantity: 2
-  },
-  {
-  id: '2222product',
-  item_price: 5,
-  quantity: 2
-  }]
+- `contents`: `[{
+id: '1111product',
+item_price: 10,
+quantity: 2
+},
+{
+id: '2222product',
+item_price: 5,
+quantity: 2
+}]`
 
 ## 📝 License
 

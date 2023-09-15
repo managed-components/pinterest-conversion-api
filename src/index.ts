@@ -3,9 +3,23 @@ import UAParser from 'ua-parser-js'
 import {
   checkEventName,
   hashPayload,
-  pushEventData,
-  pushCustomData,
+  enrichEventData,
+  getCustomData,
 } from './utils'
+
+export interface Product {
+  product_id: number | string
+  sku: number | string
+  name: string
+  category: string
+  brand: string
+  price: number | string
+  quantity: number
+  variant: string
+  currency: string
+  value: number | string
+  position: number | string
+}
 
 export const getEventData = async (
   event: MCEvent,
@@ -15,18 +29,19 @@ export const getEventData = async (
   const { client } = event
   const parsedUserAgent = UAParser(client.userAgent)
   const payload = ecomPayload ? ecomPayload : event.payload
-  const hashedUserProperties = await hashPayload(payload)
-  const eventDataResult = await pushEventData(payload)
-  const customDataResult = await pushCustomData(payload)
+  const [hashedUserProperties, eventDataResult, customDataResult] =
+    await Promise.all([
+      hashPayload(payload),
+      enrichEventData(payload),
+      getCustomData(payload),
+    ])
 
   const eventData = {
     event_name: pageview ? 'page_visit' : payload.name,
     action_source: payload.action_source || 'web',
     event_time: Math.floor(Date.now() / 1000),
     event_id:
-      payload.event_id ||
-      payload.ecommerce?.event_id ||
-      String(Math.round(Math.random() * 100000000000000000)),
+      payload.event_id || payload.ecommerce?.event_id || crypto.randomUUID(),
     event_source_url: payload.event_source_url || client.url.href,
     opt_out: payload.opt_out || false,
     device_brand: parsedUserAgent.device.vendor,
@@ -49,48 +64,47 @@ export const getEventData = async (
 
 export default async function (manager: Manager, settings: ComponentSettings) {
   const getEcommercePayload = (event: MCEvent) => {
-    const { type, name } = event
+    const { name } = event
     let { payload } = event
     payload = { ...payload, ...payload.ecommerce }
-    if (type === 'ecommerce') {
-      const mapEventName = (name: string | undefined) => {
-        if (name === 'Product Added') {
-          // Fixed the assignment (=) to comparison (===)
-          return 'add_to_cart'
-        } else if (name === 'Order Completed') {
-          return 'checkout'
-        }
-      }
-
-      payload.name = mapEventName(name)
-      if (Array.isArray(payload.products)) {
-        payload.content_ids = payload.products
-          .map((product: any) => product.product_id)
-          .join()
-        payload.content_name = payload.products
-          .map((product: any) => product.name)
-          .join()
-        payload.content_category = payload.products
-          .map((product: any) => product.category)
-          .join()
-        payload.content_brand = payload.products
-          .map((product: any) => product.brand)
-          .join()
-        payload.contents = payload.products.map((product: any) => ({
-          id: product.product_id,
-          item_price: product.price.toString(),
-          quantity: product.quantity,
-        }))
-        payload.num_items =
-          payload.quantity ||
-          payload.products.reduce(
-            (sum: number, product: any) => sum + parseInt(product.quantity, 10),
-            0
-          )
-      }
-
-      payload.value = payload.revenue || payload.total || payload.value
+    payload.name =
+      name === 'Product Added'
+        ? 'add_to_cart'
+        : name === 'Order Completed'
+        ? 'checkout'
+        : name
+    if (Array.isArray(payload.products)) {
+      payload.content_ids = payload.products
+        .map((product: Product) => product.product_id)
+        .join()
+      payload.content_name = payload.products
+        .map((product: Product) => product.name)
+        .join()
+      payload.content_category = payload.products
+        .map((product: Product) => product.category)
+        .join()
+      payload.content_brand = payload.products
+        .map((product: Product) => product.brand)
+        .join()
+      payload.contents = payload.products.map((product: any) => ({
+        id: product.product_id,
+        item_price: product.price.toString(),
+        quantity: product.quantity,
+      }))
+      payload.num_items =
+        payload.quantity ||
+        payload.products.reduce((sum: number, product: Product) => {
+          if (typeof product.quantity === 'string') {
+            return sum + parseInt(product.quantity, 10)
+          } else if (typeof product.quantity === 'number') {
+            return sum + product.quantity
+          }
+          return sum
+        }, 0)
     }
+
+    payload.value = payload.revenue || payload.total || payload.value
+    console.log(`this is ecom payload: $$$$`, payload)
     return payload
   }
 

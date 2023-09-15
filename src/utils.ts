@@ -1,15 +1,17 @@
 import { MCEvent } from '@managed-components/types'
 import crypto from 'crypto'
+import { Product } from './index'
+
+const allowedEvents = [
+  'custom',
+  'lead',
+  'search',
+  'signup',
+  'view_category',
+  'watch_video',
+]
 
 export function checkEventName(event: MCEvent): MCEvent | undefined {
-  const allowedEvents = [
-    'custom',
-    'lead',
-    'search',
-    'signup',
-    'view_category',
-    'watch_video',
-  ]
   if (allowedEvents.includes(event.payload.name)) {
     return event
   } else {
@@ -68,7 +70,7 @@ export async function hashPayload(
   return results
 }
 
-export async function pushEventData(payload: Record<string, unknown>) {
+export async function enrichEventData(payload: Record<string, unknown>) {
   const eventDataKeys = [
     'partner_name',
     'app_id',
@@ -86,7 +88,7 @@ export async function pushEventData(payload: Record<string, unknown>) {
   return eventDataResult
 }
 
-export async function pushCustomData(payload: Record<string, unknown>) {
+export async function getCustomData(payload: Record<string, unknown>) {
   const customDataKeys = [
     'search_string',
     'opt_out_type',
@@ -153,28 +155,31 @@ export async function getEcommercePayload(event: MCEvent) {
   payload.name = mapEventName(name)
   if (Array.isArray(payload.products)) {
     payload.content_ids = payload.products
-      .map((product: any) => product.product_id)
+      .map((product: Product) => product.product_id)
       .join()
     payload.content_name = payload.products
-      .map((product: any) => product.name)
+      .map((product: Product) => product.name)
       .join()
     payload.content_category = payload.products
-      .map((product: any) => product.category)
+      .map((product: Product) => product.category)
       .join()
     payload.content_brand = payload.products
-      .map((product: any) => product.brand)
+      .map((product: Product) => product.brand)
       .join()
-    payload.contents = payload.products.map((product: any) => ({
+    payload.contents = payload.products.map((product: Product) => ({
       id: product.product_id,
       item_price: product.price.toString(),
       quantity: product.quantity,
     }))
     payload.num_items =
       payload.quantity ||
-      payload.products.reduce(
-        (sum: any, product: any) => sum + parseInt(product.quantity, 10),
-        0
-      )
+      payload.products.reduce((sum: number, product: Product) => {
+        if (typeof product.quantity === 'string') {
+          return sum + parseInt(product.quantity, 10)
+        } else {
+          return sum + product.quantity
+        }
+      }, 0)
   }
 
   payload.value = payload.revenue || payload.total || payload.value
