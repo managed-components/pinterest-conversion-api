@@ -10,7 +10,7 @@ import {
 export const getEventData = async (
   event: MCEvent,
   pageview: boolean,
-  ecomPayload?: object
+  ecomPayload?: Record<string, unknown>
 ) => {
   const { client } = event
   const parsedUserAgent = UAParser(client.userAgent)

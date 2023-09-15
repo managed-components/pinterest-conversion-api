@@ -1,6 +1,6 @@
 import { MCEvent } from '@managed-components/types'
 
-export const checkEventName = (event: MCEvent) => {
+export function checkEventName(event: MCEvent): MCEvent | undefined {
   const allowedEvents = [
     'custom',
     'lead',
@@ -34,9 +34,8 @@ export async function sha256(data: string): Promise<string | undefined> {
 }
 
 export async function hashPayload(
-  payload: any
-): Promise<Record<string, string[]>> {
-  const hashedData: Record<string, string[]> = {}
+  payload: Record<string, any>
+): Promise<Record<string, unknown>> {
   const fieldsToHash = [
     'em',
     'hashed_maids',
@@ -52,18 +51,23 @@ export async function hashPayload(
     'external_id',
   ]
 
-  for (const field of fieldsToHash) {
-    if (payload[field]) {
-      const hashedValue = await sha256(payload[field].toLowerCase())
-      if (hashedValue) {
-        hashedData[field] = [hashedValue]
-      }
+  const results: Record<string, unknown> = {}
+  const promises: Promise<void>[] = []
+
+  for (const key in payload) {
+    if (fieldsToHash.includes(key)) {
+      const hashPromise = sha256(payload[key].toString()).then(hash => {
+        results[key] = hash
+      })
+      promises.push(hashPromise)
     }
   }
-  return hashedData
+
+  await Promise.all(promises)
+  return results
 }
 
-export async function pushEventData(payload: any) {
+export async function pushEventData(payload: Record<string, unknown>) {
   const eventDataKeys = [
     'partner_name',
     'app_id',
@@ -71,7 +75,7 @@ export async function pushEventData(payload: any) {
     'app_version',
     'wifi',
   ]
-  const eventDataResult: { [key: string]: any } = {}
+  const eventDataResult: { [key: string]: unknown } = {}
 
   for (const key of eventDataKeys) {
     if (Object.prototype.hasOwnProperty.call(payload, key)) {
@@ -81,7 +85,7 @@ export async function pushEventData(payload: any) {
   return eventDataResult
 }
 
-export async function pushCustomData(payload: any) {
+export async function pushCustomData(payload: Record<string, unknown>) {
   const customDataKeys = [
     'search_string',
     'opt_out_type',
@@ -96,7 +100,7 @@ export async function pushCustomData(payload: any) {
     'contents',
     'num_items',
   ]
-  const customDataResult: { [key: string]: any } = {}
+  const customDataResult: { [key: string]: unknown } = {}
   for (const key of customDataKeys) {
     if (Object.prototype.hasOwnProperty.call(payload, key)) {
       switch (key) {
@@ -105,7 +109,11 @@ export async function pushCustomData(payload: any) {
           customDataResult[key] = String(payload[key])
           break
         case 'num_items':
-          customDataResult[key] = parseInt(payload[key], 10) // Convert to integer
+          if (typeof payload[key] === 'string') {
+            customDataResult[key] = parseInt(payload[key] as string, 10) // Convert to integer in case sent as string
+          } else {
+            customDataResult[key] = payload[key]
+          }
           break
         case 'content_ids':
           customDataResult[key] = [payload[key]]
@@ -129,44 +137,45 @@ export async function getEcommercePayload(event: MCEvent) {
   const { type, name } = event
   let { payload } = event
   payload = { ...payload, ...payload.ecommerce }
-  if (type === 'ecommerce') {
-    const mapEventName = (name: string | undefined) => {
-      if (name === 'Product Added') {
-        // Fixed the assignment (=) to comparison (===)
-        return 'add_to_cart'
-      } else if (name === 'Order Completed') {
-        return 'checkout'
-      }
-    }
-
-    payload.name = mapEventName(name)
-    if (Array.isArray(payload.products)) {
-      payload.content_ids = payload.products
-        .map((product: any) => product.product_id)
-        .join()
-      payload.content_name = payload.products
-        .map((product: any) => product.name)
-        .join()
-      payload.content_category = payload.products
-        .map((product: any) => product.category)
-        .join()
-      payload.content_brand = payload.products
-        .map((product: any) => product.brand)
-        .join()
-      payload.contents = payload.products.map((product: any) => ({
-        id: product.product_id,
-        item_price: product.price.toString(),
-        quantity: product.quantity,
-      }))
-      payload.num_items =
-        payload.quantity ||
-        payload.products.reduce(
-          (sum: any, product: any) => sum + parseInt(product.quantity, 10),
-          0
-        )
-    }
-
-    payload.value = payload.revenue || payload.total || payload.value
+  if (type !== 'ecommerce') {
+    return
   }
+  const mapEventName = (name: string | undefined) => {
+    if (name === 'Product Added') {
+      // Fixed the assignment (=) to comparison (===)
+      return 'add_to_cart'
+    } else if (name === 'Order Completed') {
+      return 'checkout'
+    }
+  }
+
+  payload.name = mapEventName(name)
+  if (Array.isArray(payload.products)) {
+    payload.content_ids = payload.products
+      .map((product: any) => product.product_id)
+      .join()
+    payload.content_name = payload.products
+      .map((product: any) => product.name)
+      .join()
+    payload.content_category = payload.products
+      .map((product: any) => product.category)
+      .join()
+    payload.content_brand = payload.products
+      .map((product: any) => product.brand)
+      .join()
+    payload.contents = payload.products.map((product: any) => ({
+      id: product.product_id,
+      item_price: product.price.toString(),
+      quantity: product.quantity,
+    }))
+    payload.num_items =
+      payload.quantity ||
+      payload.products.reduce(
+        (sum: any, product: any) => sum + parseInt(product.quantity, 10),
+        0
+      )
+  }
+
+  payload.value = payload.revenue || payload.total || payload.value
   return payload
 }
