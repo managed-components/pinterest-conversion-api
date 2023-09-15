@@ -1,4 +1,5 @@
 import { MCEvent } from '@managed-components/types'
+import crypto from 'crypto'
 
 export function checkEventName(event: MCEvent): MCEvent | undefined {
   const allowedEvents = [
