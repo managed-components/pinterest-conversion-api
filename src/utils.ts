@@ -21,23 +21,22 @@ export function checkEventName(event: MCEvent): MCEvent | undefined {
 export async function sha256(data: string): Promise<string | undefined> {
   if (!data) {
     return
-  } else {
-    const encoder = new TextEncoder()
-    const dataUint8Array = encoder.encode(data)
-    const digestArrayBuffer = await crypto.subtle.digest(
-      'SHA-256',
-      dataUint8Array
-    )
-    const digestUint8Array = new Uint8Array(digestArrayBuffer)
-    const digestString = Array.from(digestUint8Array)
-      .map(byte => byte.toString(16).padStart(2, '0'))
-      .join('')
-    return digestString
   }
+  const encoder = new TextEncoder()
+  const dataUint8Array = encoder.encode(data)
+  const digestArrayBuffer = await crypto.subtle.digest(
+    'SHA-256',
+    dataUint8Array
+  )
+  const digestUint8Array = new Uint8Array(digestArrayBuffer)
+  const digestString = Array.from(digestUint8Array)
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('')
+  return digestString
 }
 
 export async function hashPayload(
-  payload: Record<string, any>
+  payload: MCEvent['payload']
 ): Promise<Record<string, unknown>> {
   const fieldsToHash = [
     'em',
@@ -70,7 +69,11 @@ export async function hashPayload(
   return results
 }
 
-export async function enrichEventData(payload: Record<string, unknown>) {
+export async function enrichEventData(payload: MCEvent['payload']) {
+  if (!payload) {
+    return
+  }
+
   const eventDataKeys = [
     'partner_name',
     'app_id',
@@ -88,7 +91,10 @@ export async function enrichEventData(payload: Record<string, unknown>) {
   return eventDataResult
 }
 
-export async function getCustomData(payload: Record<string, unknown>) {
+export async function getCustomData(payload: MCEvent['payload']) {
+  if (!payload) {
+    return
+  }
   const customDataKeys = [
     'search_string',
     'opt_out_type',

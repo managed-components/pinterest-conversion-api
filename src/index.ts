@@ -1,4 +1,9 @@
-import { ComponentSettings, Manager, MCEvent } from '@managed-components/types'
+import {
+  Client,
+  ComponentSettings,
+  Manager,
+  MCEvent,
+} from '@managed-components/types'
 import UAParser from 'ua-parser-js'
 import {
   checkEventName,
@@ -22,13 +27,12 @@ export interface Product {
 }
 
 export const getEventData = async (
-  event: MCEvent,
+  client: Client,
   pageview: boolean,
-  ecomPayload?: Record<string, unknown>
+  payload: MCEvent['payload']
 ) => {
-  const { client } = event
   const parsedUserAgent = UAParser(client.userAgent)
-  const payload = ecomPayload ? ecomPayload : event.payload
+
   const [hashedUserProperties, eventDataResult, customDataResult] =
     await Promise.all([
       hashPayload(payload),
@@ -86,7 +90,7 @@ export default async function (manager: Manager, settings: ComponentSettings) {
       payload.content_brand = payload.products
         .map((product: Product) => product.brand)
         .join()
-      payload.contents = payload.products.map((product: any) => ({
+      payload.contents = payload.products.map((product: Product) => ({
         id: product.product_id,
         item_price: product.price.toString(),
         quantity: product.quantity,
@@ -104,11 +108,10 @@ export default async function (manager: Manager, settings: ComponentSettings) {
     }
 
     payload.value = payload.revenue || payload.total || payload.value
-    console.log(`this is ecom payload: $$$$`, payload)
     return payload
   }
 
-  const sendEvent = async (eventData: any) => {
+  const sendEvent = async (eventData: Record<string, unknown>) => {
     const requestBody = {
       data: [eventData],
     }
@@ -126,7 +129,7 @@ export default async function (manager: Manager, settings: ComponentSettings) {
   }
 
   manager.addEventListener('pageview', async event => {
-    const eventData = await getEventData(event, true)
+    const eventData = await getEventData(event.client, true, event.payload)
     sendEvent(eventData)
   })
 
@@ -136,7 +139,7 @@ export default async function (manager: Manager, settings: ComponentSettings) {
       // If the event isn't allowed, we stop processing
       return
     }
-    const eventData = await getEventData(event, false)
+    const eventData = await getEventData(event.client, false, event.payload)
     if (eventData) {
       sendEvent(eventData)
     }
@@ -144,7 +147,7 @@ export default async function (manager: Manager, settings: ComponentSettings) {
 
   manager.addEventListener('ecommerce', async event => {
     const ecomPayload = getEcommercePayload(event)
-    const eventData = await getEventData(event, false, ecomPayload)
+    const eventData = await getEventData(event.client, false, ecomPayload)
     sendEvent(eventData)
   })
 }

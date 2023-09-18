@@ -86,7 +86,11 @@ describe('getEventData', () => {
       type: 'event',
     } as unknown as MCEvent
 
-    const result = await getEventData(mockMCEvent, false)
+    const result = await getEventData(
+      mockMCEvent.client,
+      false,
+      mockMCEvent.payload
+    )
     delete (result as Record<string, unknown>).event_time
     expect(result).toEqual(expectedResult)
   })
