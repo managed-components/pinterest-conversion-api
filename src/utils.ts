@@ -69,7 +69,7 @@ export async function hashPayload(
   return results
 }
 
-export async function enrichEventData(payload: MCEvent['payload']) {
+export async function getRemainingEventData(payload: MCEvent['payload']) {
   if (!payload) {
     return
   }
@@ -81,14 +81,14 @@ export async function enrichEventData(payload: MCEvent['payload']) {
     'app_version',
     'wifi',
   ]
-  const eventDataResult: { [key: string]: unknown } = {}
+  const remainingEventData: { [key: string]: unknown } = {}
 
   for (const key of eventDataKeys) {
     if (Object.prototype.hasOwnProperty.call(payload, key)) {
-      eventDataResult[key] = payload[key]
+      remainingEventData[key] = payload[key]
     }
   }
-  return eventDataResult
+  return remainingEventData
 }
 
 export async function getCustomData(payload: MCEvent['payload']) {

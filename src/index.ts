@@ -8,7 +8,7 @@ import UAParser from 'ua-parser-js'
 import {
   checkEventName,
   hashPayload,
-  enrichEventData,
+  getRemainingEventData,
   getCustomData,
 } from './utils'
 
@@ -26,6 +26,50 @@ export interface Product {
   position: number | string
 }
 
+const getEcommercePayload = (event: MCEvent) => {
+  const { name } = event
+  let { payload } = event
+  payload = { ...payload, ...payload.ecommerce }
+  payload.name =
+    name === 'Product Added'
+      ? 'add_to_cart'
+      : name === 'Order Completed'
+      ? 'checkout'
+      : name
+  if (Array.isArray(payload.products)) {
+    payload.content_ids = payload.products
+      .map((product: Product) => product.product_id)
+      .join()
+    payload.content_name = payload.products
+      .map((product: Product) => product.name)
+      .join()
+    payload.content_category = payload.products
+      .map((product: Product) => product.category)
+      .join()
+    payload.content_brand = payload.products
+      .map((product: Product) => product.brand)
+      .join()
+    payload.contents = payload.products.map((product: Product) => ({
+      id: product.product_id,
+      item_price: product.price.toString(),
+      quantity: product.quantity,
+    }))
+    payload.num_items =
+      payload.quantity ||
+      payload.products.reduce((sum: number, product: Product) => {
+        if (typeof product.quantity === 'string') {
+          return sum + parseInt(product.quantity, 10)
+        } else if (typeof product.quantity === 'number') {
+          return sum + product.quantity
+        }
+        return sum
+      }, 0)
+  }
+
+  payload.value = payload.revenue || payload.total || payload.value
+  return payload
+}
+
 export const getEventData = async (
   client: Client,
   pageview: boolean,
@@ -33,10 +77,10 @@ export const getEventData = async (
 ) => {
   const parsedUserAgent = UAParser(client.userAgent)
 
-  const [hashedUserProperties, eventDataResult, customDataResult] =
+  const [hashedUserProperties, remainingEventData, customDataResult] =
     await Promise.all([
       hashPayload(payload),
-      enrichEventData(payload),
+      getRemainingEventData(payload),
       getCustomData(payload),
     ])
 
@@ -52,7 +96,7 @@ export const getEventData = async (
     device_model: parsedUserAgent.device.model,
     os_version: parsedUserAgent.os.version,
     language: payload.language || client.language.split(',')[0].substring(0, 2),
-    ...eventDataResult,
+    ...remainingEventData,
     user_data: {
       client_ip_address: payload.client_ip_address || client.ip.toString(),
       client_user_agent: payload.client_user_agent || parsedUserAgent.ua,
@@ -66,71 +110,31 @@ export const getEventData = async (
   return eventData
 }
 
+const sendEvent = async (
+  eventData: Record<string, unknown>,
+  manager: Manager,
+  settings: ComponentSettings
+) => {
+  const requestBody = {
+    data: [eventData],
+  }
+
+  const pinterestEndpoint = `https://api.pinterest.com/v5/ad_accounts/${settings.ad_account_id}/events`
+
+  await manager.fetch(pinterestEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${settings.conversion_token}`,
+    },
+    body: JSON.stringify(requestBody),
+  })
+}
+
 export default async function (manager: Manager, settings: ComponentSettings) {
-  const getEcommercePayload = (event: MCEvent) => {
-    const { name } = event
-    let { payload } = event
-    payload = { ...payload, ...payload.ecommerce }
-    payload.name =
-      name === 'Product Added'
-        ? 'add_to_cart'
-        : name === 'Order Completed'
-        ? 'checkout'
-        : name
-    if (Array.isArray(payload.products)) {
-      payload.content_ids = payload.products
-        .map((product: Product) => product.product_id)
-        .join()
-      payload.content_name = payload.products
-        .map((product: Product) => product.name)
-        .join()
-      payload.content_category = payload.products
-        .map((product: Product) => product.category)
-        .join()
-      payload.content_brand = payload.products
-        .map((product: Product) => product.brand)
-        .join()
-      payload.contents = payload.products.map((product: Product) => ({
-        id: product.product_id,
-        item_price: product.price.toString(),
-        quantity: product.quantity,
-      }))
-      payload.num_items =
-        payload.quantity ||
-        payload.products.reduce((sum: number, product: Product) => {
-          if (typeof product.quantity === 'string') {
-            return sum + parseInt(product.quantity, 10)
-          } else if (typeof product.quantity === 'number') {
-            return sum + product.quantity
-          }
-          return sum
-        }, 0)
-    }
-
-    payload.value = payload.revenue || payload.total || payload.value
-    return payload
-  }
-
-  const sendEvent = async (eventData: Record<string, unknown>) => {
-    const requestBody = {
-      data: [eventData],
-    }
-
-    const pinterestEndpoint = `https://api.pinterest.com/v5/ad_accounts/${settings.ad_account_id}/events`
-
-    await manager.fetch(pinterestEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${settings.conversion_token}`,
-      },
-      body: JSON.stringify(requestBody),
-    })
-  }
-
   manager.addEventListener('pageview', async event => {
     const eventData = await getEventData(event.client, true, event.payload)
-    sendEvent(eventData)
+    sendEvent(eventData, manager, settings)
   })
 
   manager.addEventListener('event', async event => {
@@ -141,13 +145,13 @@ export default async function (manager: Manager, settings: ComponentSettings) {
     }
     const eventData = await getEventData(event.client, false, event.payload)
     if (eventData) {
-      sendEvent(eventData)
+      sendEvent(eventData, manager, settings)
     }
   })
 
   manager.addEventListener('ecommerce', async event => {
     const ecomPayload = getEcommercePayload(event)
     const eventData = await getEventData(event.client, false, ecomPayload)
-    sendEvent(eventData)
+    sendEvent(eventData, manager, settings)
   })
 }
