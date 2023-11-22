@@ -11,11 +11,7 @@ const allowedEvents = [
 ]
 
 export function isEventAllowed(event: MCEvent): boolean {
-  if (allowedEvents.includes(event.payload.name)) {
-    return true
-  } else {
-    return false
-  }
+  return allowedEvents.includes(event.payload.name)
 }
 
 export async function sha256(data: string): Promise<string | null> {
