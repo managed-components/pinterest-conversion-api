@@ -1,5 +1,4 @@
 import { MCEvent } from '@managed-components/types'
-import crypto from 'crypto'
 import { Product } from './index'
 
 const allowedEvents = [
@@ -11,16 +10,17 @@ const allowedEvents = [
   'watch_video',
 ]
 
-export function checkEventName(event: MCEvent): MCEvent | undefined {
+export function isEventAllowed(event: MCEvent): boolean {
   if (allowedEvents.includes(event.payload.name)) {
-    return event
+    return true
   } else {
-    return
+    return false
   }
 }
-export async function sha256(data: string): Promise<string | undefined> {
+
+export async function sha256(data: string): Promise<string | null> {
   if (!data) {
-    return
+    return null
   }
   const encoder = new TextEncoder()
   const dataUint8Array = encoder.encode(data)
@@ -71,7 +71,7 @@ export async function hashPayload(
 
 export async function getRemainingEventData(payload: MCEvent['payload']) {
   if (!payload) {
-    return
+    return null
   }
 
   const eventDataKeys = [
@@ -93,7 +93,7 @@ export async function getRemainingEventData(payload: MCEvent['payload']) {
 
 export async function getCustomData(payload: MCEvent['payload']) {
   if (!payload) {
-    return
+    return null
   }
   const customDataKeys = [
     'search_string',
@@ -111,15 +111,16 @@ export async function getCustomData(payload: MCEvent['payload']) {
   ]
   const customDataResult: { [key: string]: unknown } = {}
   for (const key of customDataKeys) {
+    const value = payload[key]
     if (Object.prototype.hasOwnProperty.call(payload, key)) {
       switch (key) {
         case 'currency':
         case 'value':
-          customDataResult[key] = String(payload[key])
+          customDataResult[key] = String(value)
           break
         case 'num_items':
-          if (typeof payload[key] === 'string') {
-            customDataResult[key] = parseInt(payload[key] as string, 10) // Convert to integer in case sent as string
+          if (typeof value === 'string') {
+            customDataResult[key] = parseInt(value, 10)
           } else {
             customDataResult[key] = payload[key]
           }
@@ -147,7 +148,7 @@ export async function getEcommercePayload(event: MCEvent) {
   let { payload } = event
   payload = { ...payload, ...payload.ecommerce }
   if (type !== 'ecommerce') {
-    return
+    return null
   }
   const mapEventName = (name: string | undefined) => {
     if (name === 'Product Added') {

@@ -2,7 +2,7 @@
   "name": "@managed-components/pinterest-conversion-api",
   "namespace": "@managed-components/pinterest-conversion-api",
   "description": "pinterest capi mc",
-  "icon": "assets/icon.svg",
+  "icon": "assets/pinterest.svg",
   "permissions": {
     "provide_ecommerce": {
       "description": "Used to track user behaviour in ecommerce apps",

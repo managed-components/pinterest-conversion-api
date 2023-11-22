@@ -1,5 +1,8 @@
 import { MCEvent } from '@managed-components/types'
 import { getEventData } from '.'
+import crypto from 'crypto'
+vi.stubGlobal('crypto', crypto.webcrypto)
+
 describe('getEventData', () => {
   it('generates a compliant request payload', async () => {
     const expectedResult = {
