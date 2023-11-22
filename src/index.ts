@@ -6,7 +6,7 @@ import {
 } from '@managed-components/types'
 import UAParser from 'ua-parser-js'
 import {
-  checkEventName,
+  isEventAllowed,
   hashPayload,
   getRemainingEventData,
   getCustomData,
@@ -138,7 +138,7 @@ export default async function (manager: Manager, settings: ComponentSettings) {
   })
 
   manager.addEventListener('event', async event => {
-    const checkedEvent = checkEventName(event)
+    const checkedEvent = isEventAllowed(event)
     if (!checkedEvent) {
       // If the event isn't allowed, we stop processing
       return
