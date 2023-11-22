@@ -1,0 +1,24 @@
+{
+  "name": "@managed-components/pinterest-conversion-api",
+  "namespace": "@managed-components/pinterest-conversion-api",
+  "description": "pinterest capi mc",
+  "icon": "assets/pinterest.svg",
+  "permissions": {
+    "provide_ecommerce": {
+      "description": "Used to track user behaviour in ecommerce apps",
+      "required": true
+    },
+    "provide_manager_events": {
+      "description": "Used to track user behaviour server-side",
+      "required": true
+    },
+    "provide_user_events": {
+      "description": "Used to track user behaviour with custom events",
+      "required": true
+    },
+    "provide_pageviews": {
+      "description": "Used to track pageviews",
+      "required": true
+    }
+  }
+}
