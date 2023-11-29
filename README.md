@@ -41,7 +41,7 @@ Fields are properties that can/must be sent with certain events.
 
 #### Event ID `string` _required_
 
-`event_id` Pinterest's Event ID is a unique id string that identifies a certain event and can be used for deduping between events ingested via both the conversion API and Pinterest tracking. This MC is looking for values under `payload.event_id` or `payload.ecommerce.event_id` and if it cannot find one, it generates a rundom ID.
+`event_id` Pinterest's Event ID is a unique id string that identifies a certain event and can be used for deduping between events ingested via both the conversion API and Pinterest tracking. This MC is looking for values under `payload.event_id` or `payload.ecommerce.event_id` and if it cannot find one, it generates a random ID.
 
 #### Client IP Address `string` _required_
 
