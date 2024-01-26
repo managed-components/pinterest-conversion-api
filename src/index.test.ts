@@ -2,7 +2,7 @@ import { MCEvent } from '@managed-components/types'
 import { getEventData } from '.'
 import _crypto from 'crypto'
 
-if (!crypto) {
+if (!global.crypto) {
   vi.stubGlobal('crypto', crypto.webcrypto)
 }
 
