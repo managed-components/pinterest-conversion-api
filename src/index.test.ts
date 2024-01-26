@@ -3,7 +3,7 @@ import { getEventData } from '.'
 import _crypto from 'crypto'
 
 if (!global.crypto) {
-  vi.stubGlobal('crypto', crypto.webcrypto)
+  vi.stubGlobal('crypto', _crypto.webcrypto)
 }
 
 describe('getEventData', () => {
