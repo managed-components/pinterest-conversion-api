@@ -19,6 +19,10 @@
     "provide_pageviews": {
       "description": "Used to track pageviews",
       "required": true
+    },
+    "server_network_requests": {
+      "description": "Pinterest uses serverside network requests to report data",
+      "required": true
     }
   }
 }
