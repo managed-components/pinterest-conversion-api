@@ -1,6 +1,6 @@
 {
   "name": "@managed-components/pinterest-conversion-api",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A Managed Component for pinterest",
   "main": "dist/index.js",
   "scripts": {
