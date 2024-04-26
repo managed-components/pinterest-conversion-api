@@ -51,7 +51,7 @@ const getEcommercePayload = (event: MCEvent) => {
       .join()
     payload.contents = payload.products.map((product: Product) => ({
       id: product.product_id,
-      item_price: product.price ? product.price.toString() : '',
+      item_price: product.price?.toString() || '',
       quantity: product.quantity,
     }))
     payload.num_items =
