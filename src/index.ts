@@ -51,7 +51,7 @@ const getEcommercePayload = (event: MCEvent) => {
       .join()
     payload.contents = payload.products.map((product: Product) => ({
       id: product.product_id,
-      item_price: product.price.toString(),
+      item_price: product.price ? product.price.toString() : '',
       quantity: product.quantity,
     }))
     payload.num_items =
@@ -98,7 +98,7 @@ export const getEventData = async (
     language: payload.language || client.language.split(',')[0].substring(0, 2),
     ...remainingEventData,
     user_data: {
-      client_ip_address: payload.client_ip_address || client.ip.toString(),
+      client_ip_address: payload.client_ip_address || client.ip?.toString(),
       client_user_agent: payload.client_user_agent || parsedUserAgent.ua,
       ...(payload.click_id && { click_id: payload.click_id }),
       ...hashedUserProperties,
